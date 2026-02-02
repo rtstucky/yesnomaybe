@@ -17,7 +17,7 @@
         
         <div id="sidebar">
             <div id="sidebar-header">
-                <h1>Wichita Zoning</h1>
+                <h1>Can you build here?</h1>
                 <p>Loading map data...</p>
             </div>
             <div id="sidebar-content">
@@ -33,15 +33,15 @@
                     <div style="margin-top: 10px;">
                         <div style="display: flex; align-items: center; margin-bottom: 8px;">
                             <div style="width: 20px; height: 20px; background: #4CAF50; margin-right: 10px; border: 1px solid #333;"></div>
-                            <span>P - Permitted</span>
-                        </div>
-                        <div style="display: flex; align-items: center; margin-bottom: 8px;">
-                            <div style="width: 20px; height: 20px; background: #d95f02; margin-right: 10px; border: 1px solid #333;"></div>
-                            <span>C - Conditional or Conditional/Permitted</span>
+                            <span>Yes</span>
                         </div>
                         <div style="display: flex; align-items: center; margin-bottom: 8px;">
                             <div style="width: 20px; height: 20px; background: #7570b3; margin-right: 10px; border: 1px solid #333;"></div>
-                            <span>N - Not Permitted</span>
+                            <span>No</span>
+                        </div>
+                          <div style="display: flex; align-items: center; margin-bottom: 8px;">
+                            <div style="width: 20px; height: 20px; background: #d95f02; margin-right: 10px; border: 1px solid #333;"></div>
+                            <span>Maybe</span>
                         </div>
                     </div>
                 </div>
@@ -51,7 +51,7 @@
                     <div style="margin-top: 10px; position: relative; height: 250px;">
                         <canvas id="areaChart"></canvas>
                     </div>
-                    <div id="area-stats" style="margin-top: 10px; font-size: 12px;"></div>
+                    <div id="area-stats" style="margin-top: 10px;"></div>
                 </div>
             </div>
         </div>
@@ -76,40 +76,30 @@
             }).addTo(map);        
         }
         
-        // Calculate area of a polygon in square meters
-        // Uses geodesic calculation for accuracy with lat/lng coordinates
-        function calculateArea(geometry) {
-            if (geometry.type !== 'Polygon' && geometry.type !== 'MultiPolygon') {
-                return 0;
-            }
-            
-            const polygons = geometry.type === 'Polygon' ? [geometry.coordinates] : geometry.coordinates;
-            let totalArea = 0;
-            
-            for (const polygon of polygons) {
-                const ring = polygon[0]; // Outer ring
-                let area = 0;
-                
-                for (let i = 0; i < ring.length - 1; i++) {
-                    const p1 = ring[i];
-                    const p2 = ring[i + 1];
-                    area += (p2[0] - p1[0]) * (p2[1] + p1[1]);
-                }
-                
-                // Convert to approximate square meters using average latitude
-                const avgLat = ring.reduce((sum, coord) => sum + coord[1], 0) / ring.length;
-                const metersPerDegreeLat = 111320;
-                const metersPerDegreeLng = 111320 * Math.cos(avgLat * Math.PI / 180);
-                
-                totalArea += Math.abs(area) / 2 * metersPerDegreeLat * metersPerDegreeLng;
-            }
-            
-            return totalArea;
+        // Get area from the API's Shape.STArea() field (already in square feet)
+        function calculateArea(geometry, properties) {
+            // Use the Shape.STArea() field if available, otherwise return 0
+            return properties['Shape.STArea()'] || 0;
         }
         
-        // Load GeoJSON data from ArcGIS with pagination
+        // Load GeoJSON data from ArcGIS with pagination, filtered by Wichita city boundary
         async function loadZoningData() {
             try {
+                // First, load the Wichita city boundary
+                document.querySelector('#sidebar-header p').textContent = 'Loading city boundary...';
+                
+                const cityUrl = 'https://gismaps.wichita.gov/ageweb/rest/services/COWGIS/Districts/MapServer/2/query?where=CITY%3D%27WICHITA%27&outFields=*&outSR=4326&f=geojson';
+                const cityResponse = await fetch(cityUrl);
+                const cityData = await cityResponse.json();
+                
+                if (!cityData.features || cityData.features.length === 0) {
+                    throw new Error('Could not load Wichita city boundary');
+                }
+                
+                const wichitaBoundary = cityData.features[0].geometry;
+                console.log('Wichita boundary loaded');
+                
+                // Now load zoning data with pagination
                 let allFeatures = [];
                 let offset = 0;
                 const limit = 1000;
@@ -123,9 +113,14 @@
                     const data = await response.json();
                     
                     if (data.features && data.features.length > 0) {
-                        allFeatures = allFeatures.concat(data.features);
+                        // Filter features to only include those within Wichita
+                        const filteredFeatures = data.features.filter(feature => {
+                            return isWithinBoundary(feature.geometry, wichitaBoundary);
+                        });
+                        
+                        allFeatures = allFeatures.concat(filteredFeatures);
                         offset += data.features.length;
-                        document.querySelector('#sidebar-header p').textContent = `Loading... ${allFeatures.length} zones`;
+                        document.querySelector('#sidebar-header p').textContent = `Loading... ${allFeatures.length} zones in Wichita`;
                         
                         if (data.features.length < limit) {
                             hasMore = false;
@@ -135,7 +130,7 @@
                     }
                 }
                 
-                console.log('Total features loaded:', allFeatures.length);
+                console.log('Total features in Wichita:', allFeatures.length);
                 
                 const geojson = {
                     type: 'FeatureCollection',
@@ -152,8 +147,8 @@
                     onEachFeature: (feature, layer) => {
                         const zone = feature.properties.ZONING;
                         
-                        // Calculate and store area
-                        feature.properties.calculatedArea = calculateArea(feature.geometry);
+                        // Get area from Shape.STArea() field
+                        feature.properties.calculatedArea = calculateArea(feature.geometry, feature.properties);
                         
                         layer.on('click', function() {
                             layer.bindPopup(`<strong>Zoning:</strong> ${zone}`).openPopup();
@@ -168,6 +163,58 @@
                 console.error('Error loading zoning data:', error);
                 document.querySelector('#sidebar-header p').textContent = 'Error loading map';
             }
+        }
+        
+        // Check if a geometry is within a boundary using a simple point-in-polygon test
+        function isWithinBoundary(geometry, boundary) {
+            // Get a representative point from the geometry (centroid approximation)
+            let testPoint;
+            
+            if (geometry.type === 'Polygon') {
+                const coords = geometry.coordinates[0];
+                testPoint = getCentroid(coords);
+            } else if (geometry.type === 'MultiPolygon') {
+                const coords = geometry.coordinates[0][0];
+                testPoint = getCentroid(coords);
+            } else {
+                return false;
+            }
+            
+            // Check if point is within boundary
+            if (boundary.type === 'Polygon') {
+                return pointInPolygon(testPoint, boundary.coordinates[0]);
+            } else if (boundary.type === 'MultiPolygon') {
+                return boundary.coordinates.some(poly => pointInPolygon(testPoint, poly[0]));
+            }
+            
+            return false;
+        }
+        
+        // Calculate centroid of a polygon ring
+        function getCentroid(ring) {
+            let x = 0, y = 0;
+            for (const coord of ring) {
+                x += coord[0];
+                y += coord[1];
+            }
+            return [x / ring.length, y / ring.length];
+        }
+        
+        // Point-in-polygon ray casting algorithm
+        function pointInPolygon(point, polygon) {
+            const x = point[0], y = point[1];
+            let inside = false;
+            
+            for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+                const xi = polygon[i][0], yi = polygon[i][1];
+                const xj = polygon[j][0], yj = polygon[j][1];
+                
+                const intersect = ((yi > y) !== (yj > y)) && 
+                    (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+                if (intersect) inside = !inside;
+            }
+            
+            return inside;
         }
         
         // Load CSV and populate dropdown
@@ -317,9 +364,9 @@
         function updateAreaChart(areaTotals) {
             const ctx = document.getElementById('areaChart').getContext('2d');
             
-            // Convert square meters to square miles and square kilometers
-            const sqMetersToSqMiles = 0.000000386102;
-            const sqMetersToSqKm = 0.000001;
+            // Convert square feet to square miles and square kilometers
+            const sqFeetToSqMiles = 1 / 27878400;
+            const sqFeetToSqKm = 0.0000000929030;
             
             const totalArea = Object.values(areaTotals).reduce((sum, val) => sum + val, 0);
             
@@ -355,30 +402,23 @@
                             display: false
                         },
                         tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    const value = context.parsed;
-                                    const sqMiles = (value * sqMetersToSqMiles).toFixed(2);
-                                    const sqKm = (value * sqMetersToSqKm).toFixed(2);
-                                    const percentage = ((value / totalArea) * 100).toFixed(1);
-                                    return `${context.label}: ${sqMiles} mi² (${sqKm} km²) - ${percentage}%`;
-                                }
-                            }
+                            enabled: false
                         }
-                    }
+                    },
+                    events: []
                 }
             });
             
             // Update stats text
             const statsDiv = document.getElementById('area-stats');
-            const totalSqMiles = (totalArea * sqMetersToSqMiles).toFixed(2);
-            const totalSqKm = (totalArea * sqMetersToSqKm).toFixed(2);
+            const totalSqMiles = (totalArea * sqFeetToSqMiles).toFixed(2);
+            const totalSqKm = (totalArea * sqFeetToSqKm).toFixed(2);
             
             statsDiv.innerHTML = `
-                <strong>Total Area:</strong> ${totalSqMiles} square miles (${totalSqKm} km²)<br>
-                <strong>Permitted:</strong> ${(areaTotals['P'] * sqMetersToSqMiles).toFixed(2)} mi² (${((areaTotals['P'] / totalArea) * 100).toFixed(1)}%)<br>
-                <strong>Conditional:</strong> ${(areaTotals['C'] * sqMetersToSqMiles).toFixed(2)} mi² (${((areaTotals['C'] / totalArea) * 100).toFixed(1)}%)<br>
-                <strong>Not Permitted:</strong> ${(areaTotals['N'] * sqMetersToSqMiles).toFixed(2)} mi² (${((areaTotals['N'] / totalArea) * 100).toFixed(1)}%)
+                <strong>Total Area:</strong> ${totalSqMiles} square miles<br>
+                <strong>Yes:</strong> ${((areaTotals['P'] / totalArea) * 100).toFixed(1)}% (${(areaTotals['P'] * sqFeetToSqMiles).toFixed(2)} mi²)<br>
+                <strong>No:</strong> ${((areaTotals['N'] / totalArea) * 100).toFixed(1)}% (${(areaTotals['N'] * sqFeetToSqMiles).toFixed(2)} mi²)<br>
+                <strong>Maybe:</strong> ${((areaTotals['C'] / totalArea) * 100).toFixed(1)}% (${(areaTotals['C'] * sqFeetToSqMiles).toFixed(2)} mi²)<br>
             `;
         }
         
