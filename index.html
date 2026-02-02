@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wichita Zoning Map</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+    <div id="container">
+        <div id="map"></div>
+        
+        <div id="sidebar">
+            <div id="sidebar-header">
+                <h1>Wichita Zoning</h1>
+                <p>Loading map data...</p>
+            </div>
+            <div id="sidebar-content">
+                <div class="detail-row">
+                    <div class="detail-label">Select Land Use</div>
+                    <select id="use-select">
+                        <option value="">Choose a use...</option>
+                    </select>
+                </div>
+                
+                <div id="legend" style="margin-top: 20px; display: none;">
+                    <div class="detail-label">Legend</div>
+                    <div style="margin-top: 10px;">
+                        <div style="display: flex; align-items: center; margin-bottom: 8px;">
+                            <div style="width: 20px; height: 20px; background: #4CAF50; margin-right: 10px; border: 1px solid #333;"></div>
+                            <span>P - Permitted</span>
+                        </div>
+                        <div style="display: flex; align-items: center; margin-bottom: 8px;">
+                            <div style="width: 20px; height: 20px; background: #d95f02; margin-right: 10px; border: 1px solid #333;"></div>
+                            <span>C - Conditional or Conditional/Permitted</span>
+                        </div>
+                        <div style="display: flex; align-items: center; margin-bottom: 8px;">
+                            <div style="width: 20px; height: 20px; background: #7570b3; margin-right: 10px; border: 1px solid #333;"></div>
+                            <span>N - Not Permitted</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="chart-container" style="margin-top: 20px; display: none;">
+                    <div class="detail-label">Area by Permission Type</div>
+                    <div style="margin-top: 10px; position: relative; height: 250px;">
+                        <canvas id="areaChart"></canvas>
+                    </div>
+                    <div id="area-stats" style="margin-top: 10px; font-size: 12px;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        let map;
+        let zoningLayer;
+        let zoneData = {}; // Store the CSV data: { 'Land Use Name': { 'RR': 'P', 'SF-20': 'N', ... } }
+        let zoneHeaders = []; // Store zone column headers
+        let areaChart = null; // Chart.js instance
+        
+        // Initialize map
+        function initMap() {
+            map = L.map('map').setView([37.6872, -97.3301], 11);
+            
+            // Add Stadia Maps tiles
+            L.tileLayer('https://tiles.stadiamaps.com/tiles/stamen_toner/{z}/{x}/{y}{r}.png?api_key=4f4c222f-cf1d-412d-a93a-e8bdaf1e4a3d', {
+                maxZoom: 20,
+                attribution: '&copy; <a href="https://stadiamaps.com/">Stadia Maps</a>, &copy; <a href="https://stamen.com/">Stamen Design</a>, &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+            }).addTo(map);        
+        }
+        
+        // Calculate area of a polygon in square meters
+        // Uses geodesic calculation for accuracy with lat/lng coordinates
+        function calculateArea(geometry) {
+            if (geometry.type !== 'Polygon' && geometry.type !== 'MultiPolygon') {
+                return 0;
+            }
+            
+            const polygons = geometry.type === 'Polygon' ? [geometry.coordinates] : geometry.coordinates;
+            let totalArea = 0;
+            
+            for (const polygon of polygons) {
+                const ring = polygon[0]; // Outer ring
+                let area = 0;
+                
+                for (let i = 0; i < ring.length - 1; i++) {
+                    const p1 = ring[i];
+                    const p2 = ring[i + 1];
+                    area += (p2[0] - p1[0]) * (p2[1] + p1[1]);
+                }
+                
+                // Convert to approximate square meters using average latitude
+                const avgLat = ring.reduce((sum, coord) => sum + coord[1], 0) / ring.length;
+                const metersPerDegreeLat = 111320;
+                const metersPerDegreeLng = 111320 * Math.cos(avgLat * Math.PI / 180);
+                
+                totalArea += Math.abs(area) / 2 * metersPerDegreeLat * metersPerDegreeLng;
+            }
+            
+            return totalArea;
+        }
+        
+        // Load GeoJSON data from ArcGIS with pagination
+        async function loadZoningData() {
+            try {
+                let allFeatures = [];
+                let offset = 0;
+                const limit = 1000;
+                let hasMore = true;
+                
+                document.querySelector('#sidebar-header p').textContent = 'Loading zoning data...';
+                
+                while (hasMore) {
+                    const url = `https://gismaps.wichita.gov/ageweb/rest/services/COWGIS/Plan_Zoning/MapServer/7/query?where=1%3D1&outFields=*&outSR=4326&f=geojson&resultOffset=${offset}&resultRecordCount=${limit}`;
+                    const response = await fetch(url);
+                    const data = await response.json();
+                    
+                    if (data.features && data.features.length > 0) {
+                        allFeatures = allFeatures.concat(data.features);
+                        offset += data.features.length;
+                        document.querySelector('#sidebar-header p').textContent = `Loading... ${allFeatures.length} zones`;
+                        
+                        if (data.features.length < limit) {
+                            hasMore = false;
+                        }
+                    } else {
+                        hasMore = false;
+                    }
+                }
+                
+                console.log('Total features loaded:', allFeatures.length);
+                
+                const geojson = {
+                    type: 'FeatureCollection',
+                    features: allFeatures
+                };
+                
+                zoningLayer = L.geoJSON(geojson, {
+                    style: {
+                        fillColor: '#666',
+                        fillOpacity: 0.4,
+                        color: '#999',
+                        weight: 1
+                    },
+                    onEachFeature: (feature, layer) => {
+                        const zone = feature.properties.ZONING;
+                        
+                        // Calculate and store area
+                        feature.properties.calculatedArea = calculateArea(feature.geometry);
+                        
+                        layer.on('click', function() {
+                            layer.bindPopup(`<strong>Zoning:</strong> ${zone}`).openPopup();
+                        });
+                    }
+                }).addTo(map);
+                
+                map.fitBounds(zoningLayer.getBounds());
+                
+                document.querySelector('#sidebar-header p').textContent = `${allFeatures.length} zones loaded`;
+            } catch (error) {
+                console.error('Error loading zoning data:', error);
+                document.querySelector('#sidebar-header p').textContent = 'Error loading map';
+            }
+        }
+        
+        // Load CSV and populate dropdown
+        async function loadCSV() {
+            try {
+                const response = await fetch('Zoning Use Regulations.csv');
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const text = await response.text();
+                
+                // Check if we accidentally got HTML instead of CSV
+                if (text.trim().startsWith('<!DOCTYPE') || text.trim().startsWith('<html')) {
+                    console.error('ERROR: Received HTML instead of CSV. Check that Zoning_Use_Regulations.csv exists in the correct location.');
+                    alert('Error: CSV file not found. Please ensure Zoning_Use_Regulations.csv is in the same directory as this HTML file.');
+                    return;
+                }
+                
+                const lines = text.trim().split('\n');
+                
+                // Parse header row to get zone names
+                const headerLine = lines[0];
+                const headerParts = headerLine.split(',');
+                zoneHeaders = headerParts.slice(1).map(h => h.trim()); // Skip first column, get zone names
+                
+                console.log('Zone headers:', zoneHeaders);
+                
+                const select = document.getElementById('use-select');
+                
+                // Parse each land use row
+                for (let i = 1; i < lines.length; i++) {
+                    const line = lines[i];
+                    
+                    // Parse CSV properly - handle quoted fields
+                    let useName = '';
+                    let values = [];
+                    
+                    if (line.startsWith('"')) {
+                        // Field is quoted, find the closing quote
+                        const closingQuoteIndex = line.indexOf('"', 1);
+                        useName = line.substring(1, closingQuoteIndex);
+                        // Get the rest of the line after the closing quote and comma
+                        const remainingLine = line.substring(closingQuoteIndex + 2);
+                        values = remainingLine.split(',').map(v => v.trim());
+                    } else {
+                        // Field is not quoted, split normally
+                        const parts = line.split(',');
+                        useName = parts[0].trim();
+                        values = parts.slice(1).map(v => v.trim());
+                    }
+                    
+                    if (useName && useName !== '') {
+                        // Store the data for this land use
+                        zoneData[useName] = {};
+                        for (let j = 0; j < zoneHeaders.length; j++) {
+                            zoneData[useName][zoneHeaders[j]] = values[j] || 'N';
+                        }
+                        
+                        // Add to dropdown
+                        const option = document.createElement('option');
+                        option.value = useName;
+                        option.textContent = useName;
+                        select.appendChild(option);
+                    }
+                }
+                
+                console.log(`Successfully loaded ${select.options.length - 1} land uses`);
+                console.log('Sample data:', zoneData['Single Family']);
+            } catch (error) {
+                console.error('Error loading CSV:', error);
+                alert('Error loading CSV file: ' + error.message);
+            }
+        }
+        
+        // Update map colors based on selected land use
+        function updateMapForLandUse(landUse) {
+            const legend = document.getElementById('legend');
+            const chartContainer = document.getElementById('chart-container');
+            
+            if (!landUse || !zoneData[landUse]) {
+                // Reset to default styling
+                zoningLayer.eachLayer(layer => {
+                    layer.setStyle({
+                        fillColor: '#666',
+                        fillOpacity: 0.4,
+                        color: '#999',
+                        weight: 1
+                    });
+                });
+                legend.style.display = 'none';
+                chartContainer.style.display = 'none';
+                return;
+            }
+            
+            // Show legend and chart
+            legend.style.display = 'block';
+            chartContainer.style.display = 'block';
+            
+            // Color scheme for different permissions
+            const colors = {
+                'P': '#4CAF50',   // Green - Permitted
+                'C': '#d95f02',   // Orange - Conditional (combines C and C/P)
+                'N': '#7570b3'    // Purple - Not permitted
+            };
+            
+            const useData = zoneData[landUse];
+            
+            // Track total areas by permission type
+            const areaTotals = {
+                'P': 0,
+                'C': 0,
+                'N': 0
+            };
+            
+            zoningLayer.eachLayer(layer => {
+                const zoning = layer.feature.properties.ZONING;
+                let permission = useData[zoning] || 'N';
+                const area = layer.feature.properties.calculatedArea || 0;
+                
+                // Normalize C/P to C
+                if (permission === 'C/P') {
+                    permission = 'C';
+                }
+                
+                // Add to totals
+                areaTotals[permission] = (areaTotals[permission] || 0) + area;
+                
+                layer.setStyle({
+                    fillColor: colors[permission] || colors['N'],
+                    fillOpacity: 0.6,
+                    color: '#333',
+                    weight: 1
+                });
+                
+                // Update popup to show permission
+                const displayPermission = useData[zoning] || 'N';
+                layer.bindPopup(`<strong>Zoning:</strong> ${zoning}<br><strong>${landUse}:</strong> ${displayPermission}`);
+            });
+            
+            // Update the chart
+            updateAreaChart(areaTotals);
+        }
+        
+        // Update or create the pie chart
+        function updateAreaChart(areaTotals) {
+            const ctx = document.getElementById('areaChart').getContext('2d');
+            
+            // Convert square meters to square miles and square kilometers
+            const sqMetersToSqMiles = 0.000000386102;
+            const sqMetersToSqKm = 0.000001;
+            
+            const totalArea = Object.values(areaTotals).reduce((sum, val) => sum + val, 0);
+            
+            // Prepare data
+            const chartData = {
+                labels: ['Permitted (P)', 'Conditional (C/C/P)', 'Not Permitted (N)'],
+                datasets: [{
+                    data: [
+                        areaTotals['P'],
+                        areaTotals['C'],
+                        areaTotals['N']
+                    ],
+                    backgroundColor: ['#4CAF50', '#d95f02', '#7570b3'],
+                    borderColor: '#fff',
+                    borderWidth: 2
+                }]
+            };
+            
+            // Destroy existing chart if it exists
+            if (areaChart) {
+                areaChart.destroy();
+            }
+            
+            // Create new chart
+            areaChart = new Chart(ctx, {
+                type: 'pie',
+                data: chartData,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const value = context.parsed;
+                                    const sqMiles = (value * sqMetersToSqMiles).toFixed(2);
+                                    const sqKm = (value * sqMetersToSqKm).toFixed(2);
+                                    const percentage = ((value / totalArea) * 100).toFixed(1);
+                                    return `${context.label}: ${sqMiles} mi² (${sqKm} km²) - ${percentage}%`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // Update stats text
+            const statsDiv = document.getElementById('area-stats');
+            const totalSqMiles = (totalArea * sqMetersToSqMiles).toFixed(2);
+            const totalSqKm = (totalArea * sqMetersToSqKm).toFixed(2);
+            
+            statsDiv.innerHTML = `
+                <strong>Total Area:</strong> ${totalSqMiles} square miles (${totalSqKm} km²)<br>
+                <strong>Permitted:</strong> ${(areaTotals['P'] * sqMetersToSqMiles).toFixed(2)} mi² (${((areaTotals['P'] / totalArea) * 100).toFixed(1)}%)<br>
+                <strong>Conditional:</strong> ${(areaTotals['C'] * sqMetersToSqMiles).toFixed(2)} mi² (${((areaTotals['C'] / totalArea) * 100).toFixed(1)}%)<br>
+                <strong>Not Permitted:</strong> ${(areaTotals['N'] * sqMetersToSqMiles).toFixed(2)} mi² (${((areaTotals['N'] / totalArea) * 100).toFixed(1)}%)
+            `;
+        }
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            initMap();
+            loadCSV();
+            loadZoningData();
+            
+            // Add event listener to dropdown
+            document.getElementById('use-select').addEventListener('change', (e) => {
+                updateMapForLandUse(e.target.value);
+            });
+        });
+    </script>
+</body>
+</html>

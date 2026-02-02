@@ -1,0 +1,124 @@
+,RR,SF-20,SF-10,SF-5,TF-3,MF-18,MF-29,B,MH,NO,GO,NR,LC,OW,GC,IP-A,IP,CBD,LI,GI,AFB
+Single Family,P,P,P,P,P,P,P,P,P,P,P,P,P,N,P,N,N,P,N,N,P
+Duplex,N,N,N,N,P,P,P,P,N,P,P,P,P,N,P,N,N,P,N,N,P
+Multi-Family,N,N,N,N,C,P,P,P,N,C,P,P,P,N,P,N,N,P,N,N,P
+Manufactured Home,P,P,P,N,N,N,N,N,P,N,N,N,N,N,N,N,N,N,N,N,P
+Manufactured Home Subdivision,N,N,N,N,N,N,N,N,P,N,N,N,N,N,N,N,N,N,N,N,P
+Manufactured Home Park,N,N,N,N,N,N,N,N,P,N,N,N,N,N,N,N,N,N,N,N,P
+Accessory Apartment,C,C,C,C,C,P,P,P,C,C,P,P,P,N,P,N,N,P,N,N,P
+Assisted Living,N,N,N,N,C,P,P,P,C,C,P,P,P,N,P,N,N,P,N,N,P
+Group Home,P,P,P,P,P,P,P,P,P,P,P,P,P,N,P,N,N,P,N,N,P
+"Group Residence, Limited",C,C,C,C,C,C,C,P,N,C,P,P,P,N,P,N,N,P,N,N,P
+"Group Residence, General",C,C,N,N,N,N,N,C,N,N,P,N,P,N,P,N,N,P,N,N,P
+Short Term Rental in the City,N,N,C/P,C/P,C/P,C/P,C/P,C/P,C/P,C/P,C/P,N,N,P,P,N,P,P,P,P,P
+Auditorium or Stadium,N,N,N,N,N,N,N,N,N,N,N,N,N,P,P,N,P,P,P,P,P
+Cemetery,C,C,C,C,C,C,C,P,N,N,P,N,P,N,P,N,N,P,P,P,P
+Church or Place of Worship,C/P,P,P,P,P,P,P,P,P,P,P,P,P,N,P,N,N,P,P,P,P
+Community Assembly,C/P,C,C,C,C,C,C,P,C,C,P,C,P,P,P,N,P,P,P,P,P
+Correctional Facility,C,C,N,N,N,N,N,N,N,N,N,N,N,N,N,N,N,N,C/P,C/P,P
+"Correctional Placement Residence, Limited",C,C,N,N,N,N,N,N,N,C,C/P,C/P,C/P,N,C/P,N,N,C/P,C/P,C/P,P
+"Correctional Placement Residence, General",C,C,N,N,N,N,N,N,N,N,C/P,N,C/P,N,C/P,N,N,C/P,C/P,C/P,P
+"Day Care, Limited",P,P,P,P,P,P,P,P,P,P,P,P,P,P,P,N,P,P,P,C,P
+"Day Care, General",C,C,C/P,C/P,C/P,P,P,P,C/P,P,P,P,P,P,P,N,P,P,P,C,P
+Day Reporting Center,N,N,N,N,N,N,N,N,N,N,N,N,N,N,N,N,N,N,C,C,P
+Golf Course,P,P,P,P,P,P,P,P,P,P,P,N,P,N,P,N,N,P,P,P,P
+Government Service,C,C,C,C,C,C,C,C,N,C,C,C,P,P,P,P,P,P,P,P,P
+Hospital,N,C,N,N,N,N,N,P,P,N,P,N,P,N,P,N,N,P,P,P,P
+Library,C,C,P,P,P,P,P,P,P,P,P,P,P,P,P,N,P,P,P,P,N
+Neighborhood Swimming Pool,C,C,C,C,C,C,C,C,C,C,C,C,C,N,C,N,N,N,N,N,P
+Nursing Facility,N,N,N,N,N,N,N,P,N,N,P,N,P,N,P,N,N,P,P,C,P
+Parks and Recreation,P,P,P,P,P,P,P,P,P,P,P,P,P,P,P,P,P,P,P,P,P
+"Recycling Collection Station, Private",P,P,P,P,P,P,P,P,P,P,P,P,P,P,P,P,P,P,P,P,P
+"Recycling Collection Station, Public",N,N,N,N,N,N,N,N,N,N,N,N,P,P,P,P,P,P,P,P,P
+Recycling Processing Center,N,N,N,N,N,N,N,N,N,N,N,N,N,P,P,P,P,P,C/P,P,P
+Reverse Vending Machine,N,N,N,N,N,N,N,N,N,N,N,N,P,P,P,P,P,P,P,P,P
+Safety Service,C,C,C,C,C,C,C,C,C,C,C,C,P,P,P,P,P,P,P,P,P
+"School, Elementary, Middle & High",C,P,P,P,P,P,P,P,P,C,P,P,P,N,P,N,N,P,C,C,P
+University or College,N,N,N,N,N,N,N,P,N,C,P,N,P,P,P,N,P,P,P,P,P
+"Utility, Major",C,C,C,C,C,C,C,C,C,C,C,C,C,C,C,C,C,C,C,C,P
+"Utility, Minor",P,P,P,P,P,P,P,P,P,P,P,P,P,P,P,P,P,P,P,P,P
+Airport or Airstrip,C,C,N,N,N,N,N,N,N,N,N,N,N,C,N,C,C,N,C,C,P
+"Animal Care, Limited",C,N,N,N,N,N,N,N,N,N,C,N,P,P,P,N,P,P,P,P,P
+"Animal Care, General",C,N,N,N,N,N,N,N,N,N,N,N,C,P,P,N,P,P,P,P,P
+Automated Teller Machine,N,N,N,N,N,N,N,N,N,P,P,P,P,P,P,N,P,P,P,P,P
+Bank or Financial Institution,N,N,N,N,N,N,N,N,N,N,C,P,P,P,P,N,P,P,P,P,P
+Bed and Breakfast Inn,P,C,C,C,C,C,C,C,N,N,P,P,P,N,P,N,N,P,N,N,P
+Broadcast/Recording Studio,N,N,N,N,N,N,N,N,N,N,P,P,P,P,P,N,P,P,P,P,P
+Car Wash,N,N,N,N,N,N,N,N,N,N,N,N,C/P,N,C/P,C/P,C/P,C/P,C/P,C/P,P
+Construction Sales and Service,N,N,N,N,N,N,N,N,N,N,N,N,P,P,P,P,P,P,P,P,P
+Convenience Store,N,N,N,N,N,N,N,N,N,N,N,N,P,N,P,N,P,P,P,P,P
+Entertainment Establishment in the City,N,N,N,N,N,N,N,N,N,N,N,N,C/P,N,C/P,N,N,C/P,C/P,C/P,P
+Event Center in the City,N,N,N,N,N,N,N,N,N,N,N,N,C/P,N,C/P,N,N,C/P,C/P,C/P,P
+Event Center in the County,C/P,N,N,N,N,N,N,N,N,N,N,N,C/P,N,C/P,N,N,N,C/P,C/P,P
+Farmer's Market in the City,N,N,N,N,N,N,N,N,N,N,N,N,P,P,P,N,P,P,P,P,P
+Farmer's Market in the County,C/P,N,N,N,N,N,N,N,N,N,N,N,N,P,N,P,N,N,N,P,P
+Funeral Home,N,N,N,N,N,N,N,N,N,N,P,N,P,N,P,N,N,P,P,P,P
+Heliport,N,N,N,N,N,N,N,C,N,N,C,C,C,C,C,C,C,C,C,C,P
+Hotel or Motel,N,N,N,N,N,N,N,N,N,N,P,N,P,N,P,N,N,P,P,P,P
+"Kennel, Hobby",P,C,N,N,N,N,N,N,N,N,N,N,C,N,P,N,N,N,N,N,P
+"Kennel, Boarding/Breeding/Training",C,C,N,N,N,N,N,N,N,N,N,N,C,N,P,N,N,N,P,P,P
+"Marine Facility, Recreational",N,N,N,N,N,N,N,P,N,N,P,N,P,N,P,N,N,P,P,P,P
+Medical Service,N,N,N,N,N,N,N,P,N,P,P,P,P,N,P,N,N,P,P,P,P
+Microbrewery,N,N,N,N,N,N,N,N,N,N,N,N,N,N,P,N,N,P,P,P,P
+Monument Sales,N,N,N,N,N,N,N,N,N,N,N,N,C,P,P,P,P,P,P,P,P
+Nightclub in the City,N,N,N,N,N,N,N,N,N,N,N,N,C/P,N,C/P,N,N,C/P,C/P,C/P,P
+Nightclub in the County,N,N,N,N,N,N,N,N,N,N,N,N,P,N,P,N,N,N,P,P,P
+Nurseries and Garden Centers,N,N,N,N,N,N,N,N,N,N,N,N,C/P,P,P,N,N,P,P,P,P
+"Office, General",N,N,N,N,N,N,N,N,N,P,P,P,P,P,P,N,P,P,P,P,P
+"Parking Area and/or Accessory Drive, Ancillary",C,C,C,C,C,C,C,C,C,C,N,N,N,N,N,N,N,N,N,N,P
+"Parking Area, Commercial",N,N,N,N,N,N,N,N,N,N,P,P,P,N,P,N,N,P,P,P,P
+Pawnshop,N,N,N,N,N,N,N,N,N,N,N,N,P,N,P,N,N,P,P,P,P
+Personal Care Service,N,N,N,N,N,N,N,N,N,N,C,P,P,P,P,N,P,P,P,P,P
+Personal Improvements Service,N,N,N,N,N,N,N,N,N,N,C,P,P,P,P,N,P,P,P,P,P
+Post Office Substation,N,N,N,N,N,N,N,N,N,N,N,N,P,P,P,N,P,P,P,P,P
+"Printing and Copying, Limited",N,N,N,N,N,N,N,N,N,N,C,P,P,P,P,P,P,P,P,P,P
+"Printing and Publishing, General",N,N,N,N,N,N,N,N,N,N,N,N,C,N,P,P,P,P,P,P,P
+"Recreation and Entertainment, Indoor",C,C,N,N,N,N,N,N,N,N,N,N,P,N,P,N,N,P,P,P,P
+"Recreation and Entertainment, Outdoor",C,C,N,N,N,N,N,N,N,N,N,N,C,N,P,N,N,P,P,P,P
+Recreational Vehicle Campground,C,C,N,N,N,N,N,N,N,N,N,N,C,N,P,N,N,N,N,N,P
+Restaurant,N,N,N,N,N,N,N,N,N,N,N,P,P,N,P,N,P,P,P,P,P
+"Retail, General",N,N,N,N,N,N,N,N,N,N,N,P,P,P,P,N,N,P,P,P,P
+Riding Academy or Stable,C,C,N,N,N,N,N,N,N,N,N,N,N,N,P,N,N,N,N,P,P
+Rodeo in the City,N,N,N,N,N,N,N,N,N,N,N,N,N,N,C/P,N,N,N,C/P,C/P,P
+Secondhand Store,N,N,N,N,N,N,N,N,N,N,N,N,P,N,P,N,N,P,P,P,P
+Service Station,N,N,N,N,N,N,N,N,N,N,N,N,P,N,P,N,N,P,P,P,P
+Sexually Oriented Business in the City,N,N,N,N,N,N,N,N,N,N,N,N,N,N,P,N,N,N,P,P,P
+Sexually Oriented Business in the County,N,N,N,N,N,N,N,N,N,N,N,N,P,N,P,N,N,N,P,P,P
+Tattooing and Body Piercing Facility (City),N,N,N,N,N,N,N,N,N,N,N,N,N,P,P,N,P,N,P,P,P
+Tattooing and Body Piercing Facility (County),N,N,N,N,N,N,N,N,N,N,N,N,N,N,N,N,N,N,N,N,P
+Tavern and Drinking Establishment,N,N,N,N,N,N,N,N,N,N,N,N,C/P,N,C/P,N,N,C/P,C/P,C/P,P
+Teen Club in the Citv,N,N,N,N,N,N,N,N,N,N,N,N,C/P,N,C/P,N,N,C/P,C/P,C/P,P
+"Vehicle and Equipment Sales, Outdoor",N,N,N,N,N,N,N,N,N,N,N,N,C,N,P,N,N,P,P,P,P
+"Vehicle Repair, Limited",N,N,N,N,N,N,N,N,N,N,N,N,P,N,P,N,N,P,P,P,P
+"Vehicle Repair, General",N,N,N,N,N,N,N,N,N,N,N,N,N,N,P,N,N,P,P,P,P
+Vocational School,N,N,N,N,N,N,N,N,N,N,C,N,P,P,P,N,P,P,P,P,P
+"Warehouse, Self-Service Storage",N,N,N,N,N,N,N,N,N,N,C,N,C,P,P,P,P,P,P,P,P
+Wireless Communication Facility,C/P,C/P,C/P,C/P,C/P,C/P,C/P,C/P,C/P,C/P,C/P,C/P,C/P,C/P,C/P,N,C/P,C/P,C/P,C/P,P
+"Asphalt or Concrete Plant, Limited",P,P,P,P,P,P,P,P,P,P,P,P,P,P,P,P,P,P,P,P,P
+"Asphalt or Concrete Plant, General",C,C,N,N,N,N,N,N,N,N,N,N,C,N,C,N,N,N,C,P,P
+Basic Industry,N,N,N,N,N,N,N,N,N,N,N,N,N,N,N,N,N,N,N,C,P
+"Construction Burn Site, Limited",C/P,C/P,N,N,N,N,N,N,N,N,N,N,N,N,N,N,N,N,N,C/P,P
+"Construction Burn Site, General",C,C,N,N,N,N,N,N,N,N,N,N,N,N,N,N,N,N,N,C,P
+Freight Terminal,N,N,N,N,N,N,N,N,N,N,N,N,N,N,N,P,P,N,P,P,P
+Gas and/or Fuel Storage and Sales,N,N,N,N,N,N,N,N,N,N,N,N,N,N,C,N,N,N,P,P,P
+Hazardous Operations,N,N,N,N,N,N,N,N,N,N,N,N,N,N,N,N,N,N,N,C,P
+Landfill,C,N,N,N,N,N,N,N,N,N,N,N,N,N,N,N,N,N,N,C,P
+"Manufacturing, Limited",N,N,N,N,N,N,N,N,N,N,N,N,C,P,P,P,P,P,P,P,P
+"Manufacturing, General",N,N,N,N,N,N,N,N,N,N,N,N,N,N,P,P,P,P,P,P,P
+Mining or Quarrying,C,C,C,C,C,C,C,C,N,N,C,C,C,N,C,N,N,C,C,C,P
+Oil and Gas Drilling,C,C,C,C,C,C,C,C,N,N,C,C,C,N,C,N,N,C,C,C,P
+Research Services,N,N,N,N,N,N,N,N,N,N,N,N,N,P,P,P,P,P,P,P,P
+Rock Crushing,C,C,C,C,C,C,C,C,N,N,C,C,C,N,C,N,N,C,C,C,P
+Solid Waste Incinerator,C,C,C,C,C,C,C,C,N,N,C,C,C,N,C,N,N,C,C,C,P
+"Storage, Outdoor, as a Principal Use",N,N,N,N,N,N,N,N,N,N,N,N,N,N,P,N,N,P,P,P,P
+Transfer Station,C,N,N,N,N,N,N,N,N,N,N,N,N,N,N,N,N,N,N,C,P
+Vehicle Storage Yard,C,N,N,N,N,N,N,N,N,N,N,N,N,N,P,N,N,P,P,P,P
+Warehousing,N,N,N,N,N,N,N,N,N,N,N,N,N,P,P,P,P,P,P,P,P
+Welding or Machine Shop,N,N,N,N,N,N,N,N,N,N,N,N,N,N,P,P,P,P,P,P,P
+Wholesale or Business Services,N,N,N,N,N,N,N,N,N,N,N,N,N,P,P,P,P,P,P,P,P
+Wrecking/Salvage Yard,N,N,N,N,N,N,N,N,N,N,N,N,N,N,N,N,N,N,C,C,P
+Agriculture,P,P,C/P,C/P,C/P,C/P,C/P,C/P,C/P,C/P,C/P,C/P,P,P,P,P,P,P,P,P,P
+Agricultural Processing,N,N,N,N,N,N,N,N,N,N,N,N,N,N,N,N,N,N,P,P,P
+Agricultural Research,C,C,N,N,N,N,N,N,N,N,N,N,P,N,P,N,N,P,P,P,P
+Agricultural Sales and Service,C,C,N,N,N,N,N,N,N,N,N,N,P,N,P,N,N,P,P,P,P
+Grain Storage,C,N,N,N,N,N,N,N,N,N,N,N,N,N,N,N,N,N,N,P,P
