@@ -5,11 +5,86 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Wichita Zoning Map</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css"/>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        #bbox-toolbar {
+            margin-top: 16px;
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .bbox-btn {
+            flex: 1;
+            padding: 8px 12px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-family: 'Atkinson Hyperlegible', sans-serif;
+            font-size: 13px;
+            font-weight: 700;
+            transition: background 0.15s, opacity 0.15s;
+        }
+
+        #draw-bbox-btn { background: #1a73e8; color: #fff; }
+        #draw-bbox-btn:hover { background: #1558c0; }
+        #draw-bbox-btn.active { background: #e8430a; }
+
+        #clear-bbox-btn { background: #e8e8e8; color: #333; display: none; }
+        #clear-bbox-btn:hover { background: #ccc; }
+
+        #bbox-hint { font-size: 12px; color: #888; margin-top: 6px; display: none; }
+
+        #bbox-stats-container {
+            margin-top: 20px;
+            display: none;
+            background: #f5f5f0;
+            border-radius: 8px;
+            padding: 12px;
+            border: 1px solid #ddd;
+        }
+
+        #bbox-area-stats { margin-top: 8px; font-size: 13px; line-height: 1.7; }
+
+        .bbox-stat-row { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+        .bbox-stat-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+
+        .selection-banner {
+            background: #1a73e8;
+            color: white;
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            padding: 4px 10px;
+            border-radius: 4px;
+            display: inline-block;
+            margin-bottom: 8px;
+        }
+
+        #district-filter {
+            padding: 20px 0;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+            font-size: 13px;
+        }
+
+        #district-filter-label {
+            font-weight: 600;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+            color: #000;
+        }
+
+        .district-check { display: block; margin-bottom: 4px; cursor: pointer; }
+    </style>
 </head>
 <body>
     <div id="container">
@@ -21,11 +96,33 @@
                 <p>Loading map data...</p>
             </div>
             <div id="sidebar-content">
+
+                <!-- District Filter -->
+                <div id="district-filter">
+                    <div id="district-filter-label">Filter by District</div>
+                    <div id="district-checkboxes">Loading districts...</div>
+                </div>
+
                 <div class="detail-row">
                     <div class="detail-label">Select Land Use</div>
                     <select id="use-select">
                         <option value="">Choose a use...</option>
                     </select>
+                </div>
+
+                <div id="bbox-toolbar">
+                    <button id="draw-bbox-btn" class="bbox-btn">📦 Draw Area</button>
+                    <button id="clear-bbox-btn" class="bbox-btn">✕ Clear</button>
+                </div>
+                <div id="bbox-hint">Click and drag on the map to draw a selection rectangle.</div>
+
+                <div id="bbox-stats-container">
+                    <div class="selection-banner">Selected Area</div>
+                    <div class="detail-label">Area by Permission Type</div>
+                    <div style="margin-top: 10px; position: relative; height: 200px;">
+                        <canvas id="bboxAreaChart"></canvas>
+                    </div>
+                    <div id="bbox-area-stats"></div>
                 </div>
                 
                 <div id="legend" style="margin-top: 20px; display: none;">
@@ -39,7 +136,7 @@
                             <div style="width: 20px; height: 20px; background: #7570b3; margin-right: 10px; border: 1px solid #333;"></div>
                             <span>No</span>
                         </div>
-                          <div style="display: flex; align-items: center; margin-bottom: 8px;">
+                        <div style="display: flex; align-items: center; margin-bottom: 8px;">
                             <div style="width: 20px; height: 20px; background: #d95f02; margin-right: 10px; border: 1px solid #333;"></div>
                             <span>Maybe</span>
                         </div>
@@ -58,48 +155,197 @@
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
     <script>
         let map;
         let zoningLayer;
-        let zoneData = {}; // Store the CSV data: { 'Land Use Name': { 'RR': 'P', 'SF-20': 'N', ... } }
-        let zoneHeaders = []; // Store zone column headers
-        let areaChart = null; // Chart.js instance
-        
-        // Initialize map
+        let zoneData = {};
+        let zoneHeaders = [];
+        let areaChart = null;
+        let bboxChart = null;
+        let drawnItems = null;
+        let drawControl = null;
+        let currentBBox = null;
+        let isDrawing = false;
+
+        // District filtering state
+        let districts = [];
+        let layerDistricts = new Map(); // layer -> district name
+        let selectedDistricts = new Set(['All']);
+
         function initMap() {
             map = L.map('map').setView([37.6872, -97.3301], 11);
             
-            // Add Stadia Maps tiles
             L.tileLayer('https://tiles.stadiamaps.com/tiles/stamen_toner/{z}/{x}/{y}{r}.png?api_key=4f4c222f-cf1d-412d-a93a-e8bdaf1e4a3d', {
                 maxZoom: 20,
                 attribution: '&copy; <a href="https://stadiamaps.com/">Stadia Maps</a>, &copy; <a href="https://stamen.com/">Stamen Design</a>, &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-            }).addTo(map);        
+            }).addTo(map);
+
+            drawnItems = new L.FeatureGroup();
+            map.addLayer(drawnItems);
+
+            map.on(L.Draw.Event.CREATED, function(e) {
+                drawnItems.clearLayers();
+                drawnItems.addLayer(e.layer);
+                currentBBox = e.layer.getBounds();
+                isDrawing = false;
+
+                e.layer.setStyle({
+                    color: '#1a73e8',
+                    weight: 2,
+                    fillColor: '#1a73e8',
+                    fillOpacity: 0.05,
+                    dashArray: '6,4'
+                });
+
+                document.getElementById('draw-bbox-btn').textContent = '📦 Redraw Area';
+                document.getElementById('draw-bbox-btn').classList.remove('active');
+                document.getElementById('clear-bbox-btn').style.display = 'block';
+                document.getElementById('bbox-hint').style.display = 'none';
+
+                const selectedUse = document.getElementById('use-select').value;
+                if (selectedUse) updateBBoxStats(selectedUse, currentBBox);
+            });
+
+            map.on(L.Draw.Event.DRAWSTART, function() { isDrawing = true; });
+
+            map.on(L.Draw.Event.DRAWSTOP, function() {
+                if (isDrawing) {
+                    isDrawing = false;
+                    document.getElementById('draw-bbox-btn').classList.remove('active');
+                    document.getElementById('draw-bbox-btn').textContent = currentBBox ? '📦 Redraw Area' : '📦 Draw Area';
+                    document.getElementById('bbox-hint').style.display = 'none';
+                }
+            });
+        }
+
+        function startDrawing() {
+            const rectDrawer = new L.Draw.Rectangle(map, {
+                shapeOptions: { color: '#1a73e8', weight: 2, fillOpacity: 0.05, dashArray: '6,4' },
+                showArea: false
+            });
+            rectDrawer.enable();
+            document.getElementById('draw-bbox-btn').classList.add('active');
+            document.getElementById('draw-bbox-btn').textContent = '✕ Cancel Draw';
+            document.getElementById('bbox-hint').style.display = 'block';
         }
         
-        // Get area from the API's Shape.STArea() field (already in square feet)
         function calculateArea(geometry, properties) {
-            // Use the Shape.STArea() field if available, otherwise return 0
             return properties['Shape.STArea()'] || 0;
         }
+
+        // ── District filtering ──────────────────────────────────────────
+
+        function buildDistrictCheckboxes() {
+            const names = [...new Set(districts.map(d => String(d.properties['COUNCIL'])))]
+                .filter(Boolean)
+                .sort((a, b) => Number(a) - Number(b));
+
+            const container = document.getElementById('district-checkboxes');
+            container.innerHTML = `
+                <label class="district-check">
+                    <input type="checkbox" value="All" checked onchange="handleDistrictChange(this)"> All
+                </label>
+                ${names.map(name => `
+                <label class="district-check">
+                    <input type="checkbox" value="${name}" onchange="handleDistrictChange(this)"> District ${name}
+                </label>`).join('')}
+            `;
+        }
+
+        function handleDistrictChange(checkbox) {
+            if (checkbox.value === 'All') {
+                selectedDistricts = new Set(['All']);
+                document.querySelectorAll('#district-checkboxes input[type=checkbox]').forEach(cb => {
+                    cb.checked = checkbox.checked;
+                    if (cb.value !== 'All') selectedDistricts.add(cb.value);
+                });
+                if (!checkbox.checked) selectedDistricts = new Set();
+            } else {
+                selectedDistricts.delete('All');
+                document.querySelector('#district-checkboxes input[value="All"]').checked = false;
+                if (checkbox.checked) selectedDistricts.add(checkbox.value);
+                else selectedDistricts.delete(checkbox.value);
+            }
+            applyDistrictFilter();
+        }
+
+        function applyDistrictFilter() {
+            if (!zoningLayer) return;
+            const isAll = selectedDistricts.has('All') || selectedDistricts.size === 0;
+
+            zoningLayer.eachLayer(layer => {
+                const district = layerDistricts.get(layer);
+                const visible = isAll || selectedDistricts.has(district);
+                if (visible) {
+                    if (!map.hasLayer(layer)) map.addLayer(layer);
+                } else {
+                    if (map.hasLayer(layer)) map.removeLayer(layer);
+                }
+            });
+
+            // Re-run chart for current land use with visible layers only
+            const selectedUse = document.getElementById('use-select').value;
+            if (selectedUse) updateMapForLandUse(selectedUse);
+        }
+
+        function loadDistricts() {
+            const url = 'https://gismaps.wichita.gov/ageweb/rest/services/COWGIS/Districts/MapServer/3/query?where=1%3D1&outFields=COUNCIL&outSR=4326&returnGeometry=true&f=geojson';
+            fetch(url)
+                .then(r => r.json())
+                .then(data => {
+                    districts = data.features;
+
+                    // Pre-compute district for each zoning layer
+                    if (zoningLayer) {
+                        zoningLayer.eachLayer(layer => {
+                            const geometry = layer.feature.geometry;
+                            let centroid;
+                            if (geometry.type === 'Polygon') centroid = getCentroid(geometry.coordinates[0]);
+                            else if (geometry.type === 'MultiPolygon') centroid = getCentroid(geometry.coordinates[0][0]);
+                            else return;
+
+                            for (const district of districts) {
+                                if (districtContainsPoint(centroid, district.geometry)) {
+                                    layerDistricts.set(layer, String(district.properties['COUNCIL']));
+                                    break;
+                                }
+                            }
+                        });
+                    }
+
+                    buildDistrictCheckboxes();
+                })
+                .catch(() => {
+                    document.getElementById('district-checkboxes').innerHTML = 'Could not load districts';
+                });
+        }
+
+        function districtContainsPoint(centroid, geometry) {
+            const rings = geometry.type === 'Polygon'
+                ? [geometry.coordinates[0]]
+                : geometry.coordinates.map(r => r[0]);
+            for (const ring of rings) {
+                if (pointInPolygon(centroid, ring)) return true;
+            }
+            return false;
+        }
+
+        // ── Zoning data loading ─────────────────────────────────────────
         
-        // Load GeoJSON data from ArcGIS with pagination, filtered by Wichita city boundary
         async function loadZoningData() {
             try {
-                // First, load the Wichita city boundary
                 document.querySelector('#sidebar-header p').textContent = 'Loading city boundary...';
                 
                 const cityUrl = 'https://gismaps.wichita.gov/ageweb/rest/services/COWGIS/Districts/MapServer/2/query?where=CITY%3D%27WICHITA%27&outFields=*&outSR=4326&f=geojson';
                 const cityResponse = await fetch(cityUrl);
                 const cityData = await cityResponse.json();
                 
-                if (!cityData.features || cityData.features.length === 0) {
+                if (!cityData.features || cityData.features.length === 0)
                     throw new Error('Could not load Wichita city boundary');
-                }
                 
                 const wichitaBoundary = cityData.features[0].geometry;
-                console.log('Wichita boundary loaded');
                 
-                // Now load zoning data with pagination
                 let allFeatures = [];
                 let offset = 0;
                 const limit = 1000;
@@ -113,43 +359,25 @@
                     const data = await response.json();
                     
                     if (data.features && data.features.length > 0) {
-                        // Filter features to only include those within Wichita
-                        const filteredFeatures = data.features.filter(feature => {
-                            return isWithinBoundary(feature.geometry, wichitaBoundary);
-                        });
-                        
+                        const filteredFeatures = data.features.filter(feature =>
+                            isWithinBoundary(feature.geometry, wichitaBoundary)
+                        );
                         allFeatures = allFeatures.concat(filteredFeatures);
                         offset += data.features.length;
                         document.querySelector('#sidebar-header p').textContent = `Loading... ${allFeatures.length} zones in Wichita`;
-                        
-                        if (data.features.length < limit) {
-                            hasMore = false;
-                        }
+                        if (data.features.length < limit) hasMore = false;
                     } else {
                         hasMore = false;
                     }
                 }
                 
-                console.log('Total features in Wichita:', allFeatures.length);
-                
-                const geojson = {
-                    type: 'FeatureCollection',
-                    features: allFeatures
-                };
+                const geojson = { type: 'FeatureCollection', features: allFeatures };
                 
                 zoningLayer = L.geoJSON(geojson, {
-                    style: {
-                        fillColor: '#666',
-                        fillOpacity: 0.4,
-                        color: '#999',
-                        weight: 1
-                    },
+                    style: { fillColor: '#666', fillOpacity: 0.4, color: '#999', weight: 1 },
                     onEachFeature: (feature, layer) => {
                         const zone = feature.properties.ZONING;
-                        
-                        // Get area from Shape.STArea() field
                         feature.properties.calculatedArea = calculateArea(feature.geometry, feature.properties);
-                        
                         layer.on('click', function() {
                             layer.bindPopup(`<strong>Zoning:</strong> ${zone}`).openPopup();
                         });
@@ -157,192 +385,134 @@
                 }).addTo(map);
                 
                 map.fitBounds(zoningLayer.getBounds());
-                
                 document.querySelector('#sidebar-header p').textContent = `${allFeatures.length} zones loaded`;
+
+                // Load districts now that zoning is ready
+                loadDistricts();
+
             } catch (error) {
                 console.error('Error loading zoning data:', error);
                 document.querySelector('#sidebar-header p').textContent = 'Error loading map';
             }
         }
         
-        // Check if a geometry is within a boundary using a simple point-in-polygon test
         function isWithinBoundary(geometry, boundary) {
-            // Get a representative point from the geometry (centroid approximation)
             let testPoint;
+            if (geometry.type === 'Polygon') testPoint = getCentroid(geometry.coordinates[0]);
+            else if (geometry.type === 'MultiPolygon') testPoint = getCentroid(geometry.coordinates[0][0]);
+            else return false;
             
-            if (geometry.type === 'Polygon') {
-                const coords = geometry.coordinates[0];
-                testPoint = getCentroid(coords);
-            } else if (geometry.type === 'MultiPolygon') {
-                const coords = geometry.coordinates[0][0];
-                testPoint = getCentroid(coords);
-            } else {
-                return false;
-            }
-            
-            // Check if point is within boundary
-            if (boundary.type === 'Polygon') {
-                return pointInPolygon(testPoint, boundary.coordinates[0]);
-            } else if (boundary.type === 'MultiPolygon') {
-                return boundary.coordinates.some(poly => pointInPolygon(testPoint, poly[0]));
-            }
-            
+            if (boundary.type === 'Polygon') return pointInPolygon(testPoint, boundary.coordinates[0]);
+            else if (boundary.type === 'MultiPolygon') return boundary.coordinates.some(poly => pointInPolygon(testPoint, poly[0]));
             return false;
         }
         
-        // Calculate centroid of a polygon ring
         function getCentroid(ring) {
             let x = 0, y = 0;
-            for (const coord of ring) {
-                x += coord[0];
-                y += coord[1];
-            }
+            for (const coord of ring) { x += coord[0]; y += coord[1]; }
             return [x / ring.length, y / ring.length];
         }
         
-        // Point-in-polygon ray casting algorithm
         function pointInPolygon(point, polygon) {
             const x = point[0], y = point[1];
             let inside = false;
-            
             for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
                 const xi = polygon[i][0], yi = polygon[i][1];
                 const xj = polygon[j][0], yj = polygon[j][1];
-                
-                const intersect = ((yi > y) !== (yj > y)) && 
-                    (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+                const intersect = ((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
                 if (intersect) inside = !inside;
             }
-            
             return inside;
         }
+
+        function layerInBBox(layer, bounds) {
+            const geometry = layer.feature.geometry;
+            let centroid;
+            if (geometry.type === 'Polygon') centroid = getCentroid(geometry.coordinates[0]);
+            else if (geometry.type === 'MultiPolygon') centroid = getCentroid(geometry.coordinates[0][0]);
+            else return false;
+            return bounds.contains(L.latLng(centroid[1], centroid[0]));
+        }
         
-        // Load CSV and populate dropdown
         async function loadCSV() {
             try {
                 const response = await fetch('Zoning Use Regulations.csv');
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
                 
                 const text = await response.text();
-                
-                // Check if we accidentally got HTML instead of CSV
                 if (text.trim().startsWith('<!DOCTYPE') || text.trim().startsWith('<html')) {
-                    console.error('ERROR: Received HTML instead of CSV. Check that Zoning_Use_Regulations.csv exists in the correct location.');
-                    alert('Error: CSV file not found. Please ensure Zoning_Use_Regulations.csv is in the same directory as this HTML file.');
+                    alert('Error: CSV file not found.');
                     return;
                 }
                 
                 const lines = text.trim().split('\n');
-                
-                // Parse header row to get zone names
-                const headerLine = lines[0];
-                const headerParts = headerLine.split(',');
-                zoneHeaders = headerParts.slice(1).map(h => h.trim()); // Skip first column, get zone names
-                
-                console.log('Zone headers:', zoneHeaders);
+                const headerParts = lines[0].split(',');
+                zoneHeaders = headerParts.slice(1).map(h => h.trim());
                 
                 const select = document.getElementById('use-select');
                 
-                // Parse each land use row
                 for (let i = 1; i < lines.length; i++) {
                     const line = lines[i];
-                    
-                    // Parse CSV properly - handle quoted fields
-                    let useName = '';
-                    let values = [];
+                    let useName = '', values = [];
                     
                     if (line.startsWith('"')) {
-                        // Field is quoted, find the closing quote
                         const closingQuoteIndex = line.indexOf('"', 1);
                         useName = line.substring(1, closingQuoteIndex);
-                        // Get the rest of the line after the closing quote and comma
-                        const remainingLine = line.substring(closingQuoteIndex + 2);
-                        values = remainingLine.split(',').map(v => v.trim());
+                        values = line.substring(closingQuoteIndex + 2).split(',').map(v => v.trim());
                     } else {
-                        // Field is not quoted, split normally
                         const parts = line.split(',');
                         useName = parts[0].trim();
                         values = parts.slice(1).map(v => v.trim());
                     }
                     
-                    if (useName && useName !== '') {
-                        // Store the data for this land use
+                    if (useName) {
                         zoneData[useName] = {};
                         for (let j = 0; j < zoneHeaders.length; j++) {
                             zoneData[useName][zoneHeaders[j]] = values[j] || 'N';
                         }
-                        
-                        // Add to dropdown
                         const option = document.createElement('option');
                         option.value = useName;
                         option.textContent = useName;
                         select.appendChild(option);
                     }
                 }
-                
-                console.log(`Successfully loaded ${select.options.length - 1} land uses`);
-                console.log('Sample data:', zoneData['Single Family']);
             } catch (error) {
                 console.error('Error loading CSV:', error);
                 alert('Error loading CSV file: ' + error.message);
             }
         }
         
-        // Update map colors based on selected land use
         function updateMapForLandUse(landUse) {
             const legend = document.getElementById('legend');
             const chartContainer = document.getElementById('chart-container');
+            const isAll = selectedDistricts.has('All') || selectedDistricts.size === 0;
             
             if (!landUse || !zoneData[landUse]) {
-                // Reset to default styling
                 zoningLayer.eachLayer(layer => {
-                    layer.setStyle({
-                        fillColor: '#666',
-                        fillOpacity: 0.4,
-                        color: '#999',
-                        weight: 1
-                    });
+                    layer.setStyle({ fillColor: '#666', fillOpacity: 0.4, color: '#999', weight: 1 });
                 });
                 legend.style.display = 'none';
                 chartContainer.style.display = 'none';
+                document.getElementById('bbox-stats-container').style.display = 'none';
                 return;
             }
             
-            // Show legend and chart
             legend.style.display = 'block';
             chartContainer.style.display = 'block';
             
-            // Color scheme for different permissions
-            const colors = {
-                'P': '#4CAF50',   // Green - Permitted
-                'C': '#d95f02',   // Orange - Conditional (combines C and C/P)
-                'N': '#7570b3'    // Purple - Not permitted
-            };
-            
+            const colors = { 'P': '#4CAF50', 'C': '#d95f02', 'N': '#7570b3' };
             const useData = zoneData[landUse];
-            
-            // Track total areas by permission type
-            const areaTotals = {
-                'P': 0,
-                'C': 0,
-                'N': 0
-            };
+            const areaTotals = { 'P': 0, 'C': 0, 'N': 0 };
             
             zoningLayer.eachLayer(layer => {
                 const zoning = layer.feature.properties.ZONING;
                 let permission = useData[zoning] || 'N';
                 const area = layer.feature.properties.calculatedArea || 0;
-                
-                // Normalize C/P to C
-                if (permission === 'C/P') {
-                    permission = 'C';
-                }
-                
-                // Add to totals
-                areaTotals[permission] = (areaTotals[permission] || 0) + area;
+                if (permission === 'C/P') permission = 'C';
+
+                // Only count visible (district-filtered) layers in stats
+                const visible = isAll || selectedDistricts.has(layerDistricts.get(layer));
+                if (visible) areaTotals[permission] = (areaTotals[permission] || 0) + area;
                 
                 layer.setStyle({
                     fillColor: colors[permission] || colors['N'],
@@ -351,70 +521,110 @@
                     weight: 1
                 });
                 
-                // Update popup to show permission
                 const displayPermission = useData[zoning] || 'N';
                 layer.bindPopup(`<strong>Zoning:</strong> ${zoning}<br><strong>${landUse}:</strong> ${displayPermission}`);
             });
             
-            // Update the chart
             updateAreaChart(areaTotals);
+
+            if (currentBBox) updateBBoxStats(landUse, currentBBox);
         }
-        
-        // Update or create the pie chart
-        function updateAreaChart(areaTotals) {
-            const ctx = document.getElementById('areaChart').getContext('2d');
-            
-            // Convert square feet to square miles and square kilometers
+
+        function updateBBoxStats(landUse, bounds) {
+            if (!zoningLayer || !landUse || !zoneData[landUse]) return;
+
+            const useData = zoneData[landUse];
+            const areaTotals = { 'P': 0, 'C': 0, 'N': 0 };
+            let featureCount = 0;
+            const isAll = selectedDistricts.has('All') || selectedDistricts.size === 0;
+
+            zoningLayer.eachLayer(layer => {
+                if (!layerInBBox(layer, bounds)) return;
+                // Respect district filter in bbox too
+                const visible = isAll || selectedDistricts.has(layerDistricts.get(layer));
+                if (!visible) return;
+
+                const zoning = layer.feature.properties.ZONING;
+                let permission = useData[zoning] || 'N';
+                const area = layer.feature.properties.calculatedArea || 0;
+                if (permission === 'C/P') permission = 'C';
+                areaTotals[permission] = (areaTotals[permission] || 0) + area;
+                featureCount++;
+            });
+
+            document.getElementById('bbox-stats-container').style.display = 'block';
+            updateBBoxChart(areaTotals, featureCount);
+        }
+
+        function updateBBoxChart(areaTotals, featureCount) {
+            const ctx = document.getElementById('bboxAreaChart').getContext('2d');
             const sqFeetToSqMiles = 1 / 27878400;
-            const sqFeetToSqKm = 0.0000000929030;
-            
             const totalArea = Object.values(areaTotals).reduce((sum, val) => sum + val, 0);
-            
-            // Prepare data
-            const chartData = {
-                labels: ['Permitted (P)', 'Conditional (C/C/P)', 'Not Permitted (N)'],
-                datasets: [{
-                    data: [
-                        areaTotals['P'],
-                        areaTotals['C'],
-                        areaTotals['N']
-                    ],
-                    backgroundColor: ['#4CAF50', '#d95f02', '#7570b3'],
-                    borderColor: '#fff',
-                    borderWidth: 2
-                }]
-            };
-            
-            // Destroy existing chart if it exists
-            if (areaChart) {
-                areaChart.destroy();
-            }
-            
-            // Create new chart
-            areaChart = new Chart(ctx, {
+
+            if (bboxChart) bboxChart.destroy();
+
+            bboxChart = new Chart(ctx, {
                 type: 'pie',
-                data: chartData,
+                data: {
+                    labels: ['Yes (P)', 'Maybe (C)', 'No (N)'],
+                    datasets: [{
+                        data: [areaTotals['P'], areaTotals['C'], areaTotals['N']],
+                        backgroundColor: ['#4CAF50', '#d95f02', '#7570b3'],
+                        borderColor: '#fff',
+                        borderWidth: 2
+                    }]
+                },
                 options: {
                     responsive: true,
                     maintainAspectRatio: true,
-                    plugins: {
-                        legend: {
-                            display: false
-                        },
-                        tooltip: {
-                            enabled: false
-                        }
-                    },
+                    plugins: { legend: { display: false }, tooltip: { enabled: false } },
+                    events: []
+                }
+            });
+
+            const totalSqMiles = (totalArea * sqFeetToSqMiles).toFixed(3);
+            document.getElementById('bbox-area-stats').innerHTML = `
+                <strong>${featureCount} parcels</strong> | <strong>${totalSqMiles} mi²</strong><br>
+                <div class="bbox-stat-row"><div class="bbox-stat-dot" style="background:#4CAF50"></div>
+                    Yes: ${((areaTotals['P'] / totalArea) * 100 || 0).toFixed(1)}% (${(areaTotals['P'] * sqFeetToSqMiles).toFixed(3)} mi²)
+                </div>
+                <div class="bbox-stat-row"><div class="bbox-stat-dot" style="background:#7570b3"></div>
+                    No: ${((areaTotals['N'] / totalArea) * 100 || 0).toFixed(1)}% (${(areaTotals['N'] * sqFeetToSqMiles).toFixed(3)} mi²)
+                </div>
+                <div class="bbox-stat-row"><div class="bbox-stat-dot" style="background:#d95f02"></div>
+                    Maybe: ${((areaTotals['C'] / totalArea) * 100 || 0).toFixed(1)}% (${(areaTotals['C'] * sqFeetToSqMiles).toFixed(3)} mi²)
+                </div>
+            `;
+        }
+        
+        function updateAreaChart(areaTotals) {
+            const ctx = document.getElementById('areaChart').getContext('2d');
+            const sqFeetToSqMiles = 1 / 27878400;
+            const totalArea = Object.values(areaTotals).reduce((sum, val) => sum + val, 0);
+            
+            if (areaChart) areaChart.destroy();
+            
+            areaChart = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: ['Permitted (P)', 'Conditional (C/C/P)', 'Not Permitted (N)'],
+                    datasets: [{
+                        data: [areaTotals['P'], areaTotals['C'], areaTotals['N']],
+                        backgroundColor: ['#4CAF50', '#d95f02', '#7570b3'],
+                        borderColor: '#fff',
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: { legend: { display: false }, tooltip: { enabled: false } },
                     events: []
                 }
             });
             
-            // Update stats text
-            const statsDiv = document.getElementById('area-stats');
             const totalSqMiles = (totalArea * sqFeetToSqMiles).toFixed(2);
-            const totalSqKm = (totalArea * sqFeetToSqKm).toFixed(2);
-            
-            statsDiv.innerHTML = `
+            document.getElementById('area-stats').innerHTML = `
                 <strong>Total Area:</strong> ${totalSqMiles} square miles<br>
                 <strong>Yes:</strong> ${((areaTotals['P'] / totalArea) * 100).toFixed(1)}% (${(areaTotals['P'] * sqFeetToSqMiles).toFixed(2)} mi²)<br>
                 <strong>No:</strong> ${((areaTotals['N'] / totalArea) * 100).toFixed(1)}% (${(areaTotals['N'] * sqFeetToSqMiles).toFixed(2)} mi²)<br>
@@ -422,15 +632,28 @@
             `;
         }
         
-        // Initialize
         document.addEventListener('DOMContentLoaded', () => {
             initMap();
             loadCSV();
             loadZoningData();
             
-            // Add event listener to dropdown
             document.getElementById('use-select').addEventListener('change', (e) => {
                 updateMapForLandUse(e.target.value);
+            });
+
+            document.getElementById('draw-bbox-btn').addEventListener('click', () => {
+                startDrawing();
+            });
+
+            document.getElementById('clear-bbox-btn').addEventListener('click', () => {
+                drawnItems.clearLayers();
+                currentBBox = null;
+                document.getElementById('clear-bbox-btn').style.display = 'none';
+                document.getElementById('draw-bbox-btn').textContent = '📦 Draw Area';
+                document.getElementById('draw-bbox-btn').classList.remove('active');
+                document.getElementById('bbox-hint').style.display = 'none';
+                document.getElementById('bbox-stats-container').style.display = 'none';
+                if (bboxChart) { bboxChart.destroy(); bboxChart = null; }
             });
         });
     </script>
