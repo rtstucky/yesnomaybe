@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css"/>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
@@ -18,7 +18,10 @@
         
         <div id="sidebar">
             <div id="sidebar-header">
-                <h1>Can you build here?</h1>
+                <div class="title-box">
+                    <h1>Can You Build Here?</h1>
+                    <div class="title-box-btm"></div>
+                </div>
                 <p>Loading map data...</p>
             </div>
             <div id="sidebar-content">
@@ -37,7 +40,7 @@
                 </div>
 
                 <div id="bbox-toolbar">
-                    <button id="draw-bbox-btn" class="bbox-btn">📦 Draw Area</button>
+                    <button id="draw-bbox-btn" class="bbox-btn">Draw Area</button>
                     <button id="clear-bbox-btn" class="bbox-btn">✕ Clear</button>
                 </div>
                 <div id="bbox-hint">Click and drag on the map to draw a selection rectangle.</div>
@@ -290,7 +293,7 @@
                         );
                         allFeatures = allFeatures.concat(filteredFeatures);
                         offset += data.features.length;
-                        document.querySelector('#sidebar-header p').textContent = `Loading... ${allFeatures.length} zones in Wichita`;
+                        document.querySelector('#sidebar-header p').textContent = `Please wait. Loading... ${allFeatures.length} parcels in Wichita`;
                         if (data.features.length < limit) hasMore = false;
                     } else {
                         hasMore = false;

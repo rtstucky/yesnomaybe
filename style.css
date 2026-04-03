@@ -15,7 +15,7 @@
 body, html {
     margin: 0;
     padding: 0;
-    font-family: 'Atkinson Hyperlegible', sans-serif;
+    font-family: 'IBM Plex Mono', monospace;
     color: black;
     height: 100vh;
     overflow: hidden;
@@ -62,9 +62,49 @@ body, html {
     z-index: 1000;
 }
 
+.title-box {
+    position: relative;
+    margin-bottom: 12px;
+}
+
+.title-box::before,
+.title-box::after {
+    content: '';
+    position: absolute;
+    top: -3px;
+    height: 3px;
+    width: 40px;
+    background: black;
+    z-index: 1;
+}
+.title-box::before { left: 0; }
+.title-box::after { right: 0; }
+
 #sidebar-header h1 {
     font-size: 20px;
-    margin-bottom: 5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    border: 1px solid black;
+    border-bottom: none;
+    padding: 8px 12px;
+}
+
+.title-box-btm {
+    height: 3px;
+    display: flex;
+    justify-content: space-between;
+}
+
+.title-box-btm::before {
+    content: '';
+    width: 20%;
+    background: black;
+}
+
+.title-box-btm::after {
+    content: '';
+    width: 40%;
+    background: black;
 }
 
 #sidebar-header p {
@@ -141,7 +181,7 @@ body, html {
 
 .detail-label {
     font-weight: 600;
-    color: var(--accent-color);
+    color: black;
     font-size: 12px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -158,6 +198,10 @@ body, html {
     text-align: center;
     padding: 40px 20px;
     font-style: italic;
+}
+
+select, select option {
+    font-family: 'IBM Plex Mono', monospace;
 }
 
 /* ─────────────────────────────────────────
@@ -177,14 +221,14 @@ body, html {
     border: none;
     border-radius: 6px;
     cursor: pointer;
-    font-family: 'Atkinson Hyperlegible', sans-serif;
+    font-family: 'IBM Plex Mono', monospace;
     font-size: 13px;
     font-weight: 700;
     transition: background 0.15s, opacity 0.15s;
 }
 
-#draw-bbox-btn { background: #1a73e8; color: #fff; }
-#draw-bbox-btn:hover { background: #1558c0; }
+#draw-bbox-btn { background: black; color: #fff; }
+#draw-bbox-btn:hover { background: #1a73e8; }
 #draw-bbox-btn.active { background: #e8430a; }
 
 #clear-bbox-btn { background: #e8e8e8; color: #333; display: none; }
@@ -249,7 +293,7 @@ body, html {
 
 .labels {
     font-size: 10px;
-    font-family: 'Atkinson Hyperlegible', sans-serif;
+    font-family: 'IBM Plex Mono', monospace;
 }
 
 .highlight-word {
